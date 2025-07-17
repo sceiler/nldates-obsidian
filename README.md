@@ -1,5 +1,37 @@
 # Natural Language Dates in Obsidian
 
+## 🔧 Recent Bug Fix - Date Parsing Issues Resolved
+
+**If you've experienced issues with natural language date parsing (especially with "yesterday", "next monday", "last monday"), this has been fixed!**
+
+### What Was Fixed
+
+A critical bug in the date parsing logic has been resolved that was causing incorrect dates for expressions that go beyond the current week:
+
+- ✅ **Fixed**: `@yesterday` now correctly gives yesterday's date
+- ✅ **Fixed**: `@next monday` now correctly gives next Monday's date  
+- ✅ **Fixed**: `@last monday` now correctly gives last Monday's date
+- ✅ **Working**: `@today` and `@tomorrow` continue to work correctly
+
+### Technical Details
+
+**The Problem**: The plugin was using the start of the current week as a reference point when parsing dates with explicit weekdays (like "yesterday", "Monday", etc.), instead of using the current date. This caused:
+- "yesterday" to be calculated from the start of the week instead of from today
+- "next monday" to show this week's Monday instead of next week's Monday
+- "last monday" to show Monday from 2 weeks ago instead of last week's Monday
+
+**The Solution**: The parser now consistently uses the current date as the reference point for all natural language date parsing, which aligns with user expectations and the underlying chrono library's design.
+
+**Week Start Settings**: This fix fully respects your week start preferences (Sunday/Monday/etc.) - those settings continue to work exactly as intended.
+
+### Compatibility
+
+- ✅ **No breaking changes** - all existing functionality continues to work
+- ✅ **All features preserved** - commands, autosuggest, date picker, URI actions all work as before
+- ✅ **Settings maintained** - your date format, week start, and other preferences are unchanged
+
+---
+
 Insert timestamps and cross-link your daily notes with the flexibility of natural language. NLDates provides a suite of tools that makes working with dates and times within Obsidian frictionless.
 
 ## Features

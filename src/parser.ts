@@ -62,8 +62,6 @@ export default class NLDParser {
 
   getParsedDate(selectedText: string, weekStartPreference: DayOfWeek): Date {
     const parser = this.chrono;
-    const initialParse = parser.parse(selectedText);
-    const weekdayIsCertain = initialParse[0]?.start.isCertain("weekday");
 
     const weekStart =
       weekStartPreference === "locale-default"
@@ -79,9 +77,8 @@ export default class NLDParser {
     const lastDayOfMatch = selectedText.match(/(last day of|end of)\s*([^\n\r]*)/i);
     const midOf = selectedText.match(/mid\s([\w]+)/i);
 
-    const referenceDate = weekdayIsCertain
-      ? window.moment().weekday(0).toDate()
-      : new Date();
+    // Always use current date as reference - this fixes the bug with dates beyond current week
+    const referenceDate = new Date();
 
     if (thisDateMatch && thisDateMatch[1] === "week") {
       return parser.parseDate(`this ${weekStart}`, referenceDate);
