@@ -1,57 +1,96 @@
-name: Build obsidian plugin
+name: Build and Release Obsidian Plugin
 
 on:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
       - "*" # Push events to matching any tag format, i.e. 1.0, 20.15.10
+  workflow_dispatch: # Allow manual triggering
+    inputs:
+      tag:
+        description: 'Tag to create (e.g., v1.0.0)'
+        required: true
+        type: string
 
 env:
-  PLUGIN_NAME: nldates-obsidian # Change this to the name of your plugin-id folder
+  PLUGIN_NAME: nldates-obsidian
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Use Node.js
-        uses: actions/setup-node@v1
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          node-version: "14.x" # You might need to adjust this value to your own version
+          fetch-depth: 0 # Fetch all history for proper tag handling
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
       - name: Build
-        id: build
+        run: npm run build
+
+      - name: Create plugin folder
         run: |
-          yarn
-          yarn run build --if-present
           mkdir ${{ env.PLUGIN_NAME }}
           cp main.js manifest.json ${{ env.PLUGIN_NAME }}
-          zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
-          ls
-          echo "::set-output name=tag_name::$(git tag --sort version:refname | tail -n 1)"
+          if [ -f styles.css ]; then cp styles.css ${{ env.PLUGIN_NAME }}; fi
+
+      - name: Create zip
+        run: zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
+
+      - name: Get tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag_name=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create tag (if manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag ${{ steps.tag.outputs.tag_name }}
+          git push origin ${{ steps.tag.outputs.tag_name }}
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ github.ref }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          release_name: Release ${{ steps.tag.outputs.tag_name }}
           draft: false
           prerelease: false
-      - name: Upload zip file
-        id: upload-zip
+          body: |
+            ## Changes
+            
+            See the full changelog at [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md)
+
+      - name: Upload plugin zip
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./${{ env.PLUGIN_NAME }}.zip
-          asset_name: ${{ env.PLUGIN_NAME }}-${{ steps.build.outputs.tag_name }}.zip
+          asset_name: ${{ env.PLUGIN_NAME }}-${{ steps.tag.outputs.tag_name }}.zip
           asset_content_type: application/zip
+
       - name: Upload main.js
-        id: upload-main
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -60,8 +99,8 @@ jobs:
           asset_path: ./main.js
           asset_name: main.js
           asset_content_type: text/javascript
+
       - name: Upload manifest.json
-        id: upload-manifest
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,13 +109,14 @@ jobs:
           asset_path: ./manifest.json
           asset_name: manifest.json
           asset_content_type: application/json
-    # - name: Upload styles.css
-    #   id: upload-css
-    #   uses: actions/upload-release-asset@v1
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   with:
-    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_path: ./styles.css
-    #     asset_name: styles.css
-    #     asset_content_type: text/css
+
+      - name: Upload styles.css (if exists)
+        if: hashFiles('styles.css') != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./styles.css
+          asset_name: styles.css
+          asset_content_type: text/css
