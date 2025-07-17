@@ -1,9 +1,9 @@
 import { Moment } from "moment";
-import { App, Editor, EditorRange, EditorPosition, normalizePath, TFile } from "obsidian";
+import { App, Editor, EditorPosition, EditorRange, normalizePath, TFile } from "obsidian";
 import {
-  createDailyNote,
-  getAllDailyNotes,
-  getDailyNote,
+    createDailyNote,
+    getAllDailyNotes,
+    getDailyNote,
 } from "obsidian-daily-notes-interface";
 
 import { DayOfWeek } from "./settings";
@@ -22,7 +22,9 @@ export default function getWordBoundaries(editor: Editor): EditorRange {
   const cursor = editor.getCursor();
 
     const pos = editor.posToOffset(cursor);
-    const word = (editor as any).cm.state.wordAt(pos);
+    // Accessing CodeMirror internal state - this is necessary for word boundary detection
+    const editorWithCM = editor as Editor & { cm: { state: { wordAt: (pos: number) => { from: number; to: number } } } };
+    const word = editorWithCM.cm.state.wordAt(pos);
     const wordStart = editor.offsetToPos(word.from);
     const wordEnd = editor.offsetToPos(word.to);
     return {
@@ -71,13 +73,18 @@ export function getWeekNumber(dayOfWeek: Omit<DayOfWeek, "locale-default">): num
 }
 
 export function getLocaleWeekStart(): Omit<DayOfWeek, "locale-default"> {
-  // @ts-ignore
-  const startOfWeek = window.moment.localeData()._week.dow;
+  // Accessing moment.js internal locale data - _week is an internal property
+  const localeData = window.moment.localeData() as any;
+  const startOfWeek = localeData._week?.dow ?? 0; // Default to Sunday if not available
   return daysOfWeek[startOfWeek];
 }
 
 export function generateMarkdownLink(app: App, subpath: string, alias?: string) {
-  const useMarkdownLinks = (app.vault as any).getConfig("useMarkdownLinks");
+  // Accessing Obsidian vault configuration
+  const vaultWithConfig = app.vault as typeof app.vault & {
+    getConfig: (key: string) => boolean;
+  };
+  const useMarkdownLinks = vaultWithConfig.getConfig("useMarkdownLinks");
   const path = normalizePath(subpath);
 
   if (useMarkdownLinks) {

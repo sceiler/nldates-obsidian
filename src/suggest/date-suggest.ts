@@ -1,11 +1,11 @@
 import {
-  App,
-  Editor,
-  EditorPosition,
-  EditorSuggest,
-  EditorSuggestContext,
-  EditorSuggestTriggerInfo,
-  TFile,
+    App,
+    Editor,
+    EditorPosition,
+    EditorSuggest,
+    EditorSuggestContext,
+    EditorSuggestTriggerInfo,
+    TFile,
 } from "obsidian";
 import type NaturalLanguageDates from "src/main";
 import { generateMarkdownLink } from "src/utils";
@@ -23,12 +23,20 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
     this.app = app;
     this.plugin = plugin;
 
-    // @ts-ignore
-    this.scope.register(["Shift"], "Enter", (evt: KeyboardEvent) => {
-      // @ts-ignore
-      this.suggestions.useSelectedItem(evt);
-      return false;
-    });
+    // Register Shift+Enter to keep text as alias
+    // Note: Accessing internal Obsidian API properties
+    try {
+      const scope = this.scope as any;
+      scope.register(["Shift"], "Enter", (evt: KeyboardEvent) => {
+        const suggestions = (this as any).suggestions;
+        if (suggestions && suggestions.useSelectedItem) {
+          suggestions.useSelectedItem(evt);
+        }
+        return false;
+      });
+    } catch (error) {
+      console.warn("Failed to register Shift+Enter shortcut for date suggestions:", error);
+    }
 
     if (this.plugin.settings.autosuggestToggleLink) {
       this.setInstructions([{ command: "Shift", purpose: "Keep text as alias" }]);
@@ -123,7 +131,7 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
   onTrigger(
     cursor: EditorPosition,
     editor: Editor,
-    file: TFile
+    _file: TFile
   ): EditorSuggestTriggerInfo {
     if (!this.plugin.settings.isAutosuggestEnabled) {
       return null;
