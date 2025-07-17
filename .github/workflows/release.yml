@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # Allow manual triggering
     inputs:
       tag:
-        description: 'Tag to create (e.g., v1.0.0)'
+        description: 'Tag to create (e.g., 1.0.0)'
         required: true
         type: string
 

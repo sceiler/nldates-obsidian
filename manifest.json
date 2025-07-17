@@ -1,10 +1,10 @@
 {
   "id": "nldates-obsidian",
-  "name": "Natural Language Dates",
-  "description": "Create date-links based on natural language",
+  "name": "Natural Language Dates (Fork)",
+  "description": "Create date-links based on natural language (Fork with improvements)",
   "version": "1.0.1",
-  "author": "Argentina Ortega Sainz",
-  "authorUrl": "https://argentinaos.com/",
+  "author": "Yi Min Yang",
+  "authorUrl": "https://www.yiminyang.dev/",
   "isDesktopOnly": false,
   "minAppVersion": "1.0.0"
 }
