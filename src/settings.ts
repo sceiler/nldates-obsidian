@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import NaturalLanguageDates from "./main";
-import { getLocaleWeekStart } from "./utils";
+import { getCachedWeekdays, getLocaleWeekStart } from "./utils";
 
 export type DayOfWeek =
   | "sunday"
@@ -62,7 +62,7 @@ export class NLDSettingsTab extends PluginSettingTab {
 
   display(): void {
     const { containerEl } = this;
-    const localizedWeekdays = window.moment.weekdays();
+    const localizedWeekdays = getCachedWeekdays();
     const localeWeekStart = getLocaleWeekStart();
 
     containerEl.empty();

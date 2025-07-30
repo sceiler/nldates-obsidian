@@ -18,6 +18,30 @@ const daysOfWeek: Omit<DayOfWeek, "locale-default">[] = [
   "saturday",
 ];
 
+// Cache for expensive moment operations
+let cachedLocaleData: any = null;
+let cachedWeekdays: string[] = null;
+let lastLocaleCheck = 0;
+const LOCALE_CACHE_DURATION = 60000; // 1 minute
+
+function getCachedLocaleData() {
+  const now = Date.now();
+  if (!cachedLocaleData || now - lastLocaleCheck > LOCALE_CACHE_DURATION) {
+    cachedLocaleData = window.moment.localeData();
+    lastLocaleCheck = now;
+  }
+  return cachedLocaleData;
+}
+
+export function getCachedWeekdays() {
+  const now = Date.now();
+  if (!cachedWeekdays || now - lastLocaleCheck > LOCALE_CACHE_DURATION) {
+    cachedWeekdays = window.moment.weekdays();
+    lastLocaleCheck = now;
+  }
+  return cachedWeekdays;
+}
+
 export default function getWordBoundaries(editor: Editor): EditorRange {
   const cursor = editor.getCursor();
 
@@ -73,8 +97,8 @@ export function getWeekNumber(dayOfWeek: Omit<DayOfWeek, "locale-default">): num
 }
 
 export function getLocaleWeekStart(): Omit<DayOfWeek, "locale-default"> {
-  // Accessing moment.js internal locale data - _week is an internal property
-  const localeData = window.moment.localeData() as any;
+  // Use cached locale data to avoid repeated expensive calls
+  const localeData = getCachedLocaleData();
   const startOfWeek = localeData._week?.dow ?? 0; // Default to Sunday if not available
   return daysOfWeek[startOfWeek];
 }

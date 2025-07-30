@@ -17,6 +17,9 @@ interface IDateCompletion {
 export default class DateSuggest extends EditorSuggest<IDateCompletion> {
   app: App;
   private plugin: NaturalLanguageDates;
+  private parseCache = new Map<string, string>();
+  private debounceTimer: NodeJS.Timeout | null = null;
+  private lastQuery = "";
 
   constructor(app: App, plugin: NaturalLanguageDates) {
     super(app);
@@ -41,6 +44,50 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
     if (this.plugin.settings.autosuggestToggleLink) {
       this.setInstructions([{ command: "Shift", purpose: "Keep text as alias" }]);
     }
+  }
+
+  // Clean up resources when component is destroyed
+  onunload(): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+    this.parseCache.clear();
+  }
+
+  // Debounced parsing to avoid excessive computation during typing
+  private debouncedParse(query: string, callback: (result: string) => void): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+
+    // Check cache first - immediate response for cached items
+    const cached = this.parseCache.get(query);
+    if (cached) {
+      callback(cached);
+      return;
+    }
+
+    // For very short queries, use shorter debounce
+    const debounceDelay = query.length <= 2 ? 50 : 100; // Reduced from 150ms
+
+    this.debounceTimer = setTimeout(() => {
+      try {
+        const result = this.plugin.parseDate(query).formattedString;
+        this.parseCache.set(query, result);
+        
+        // Limit cache size
+        if (this.parseCache.size > 50) {
+          const firstKey = this.parseCache.keys().next().value;
+          this.parseCache.delete(firstKey);
+        }
+        
+        callback(result);
+      } catch (error) {
+        console.warn("Date parsing error:", error);
+        callback(query);
+      }
+    }, debounceDelay);
   }
 
   getSuggestions(context: EditorSuggestContext): IDateCompletion[] {
@@ -111,10 +158,24 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
 
     if (suggestion.label.startsWith("time:")) {
       const timePart = suggestion.label.substring(5);
-      dateStr = this.plugin.parseTime(timePart).formattedString;
+      // Use cached result if available
+      const cached = this.parseCache.get(timePart);
+      if (cached) {
+        dateStr = cached;
+      } else {
+        dateStr = this.plugin.parseTime(timePart).formattedString;
+        this.parseCache.set(timePart, dateStr);
+      }
       makeIntoLink = false;
     } else {
-      dateStr = this.plugin.parseDate(suggestion.label).formattedString;
+      // Use cached result if available
+      const cached = this.parseCache.get(suggestion.label);
+      if (cached) {
+        dateStr = cached;
+      } else {
+        dateStr = this.plugin.parseDate(suggestion.label).formattedString;
+        this.parseCache.set(suggestion.label, dateStr);
+      }
     }
 
     if (makeIntoLink) {

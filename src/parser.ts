@@ -3,11 +3,11 @@ import type { Moment } from "moment";
 
 import { DayOfWeek } from "./settings";
 import {
-  ORDINAL_NUMBER_PATTERN,
-  getLastDayOfMonth,
-  getLocaleWeekStart,
-  getWeekNumber,
-  parseOrdinalNumberPattern,
+    ORDINAL_NUMBER_PATTERN,
+    getLastDayOfMonth,
+    getLocaleWeekStart,
+    getWeekNumber,
+    parseOrdinalNumberPattern,
 } from "./utils";
 
 export interface NLDResult {
@@ -15,6 +15,14 @@ export interface NLDResult {
   date: Date;
   moment: Moment;
 }
+
+// Pre-compile frequently used regex patterns for better performance
+const CHRISTMAS_PATTERN = /\bChristmas\b/i;
+const ORDINAL_REGEX = new RegExp(ORDINAL_NUMBER_PATTERN);
+const THIS_PATTERN = /this\s([\w]+)/i;
+const NEXT_PATTERN = /next\s([\w]+)/i;
+const LAST_DAY_PATTERN = /(last day of|end of)\s*([^\n\r]*)/i;
+const MID_PATTERN = /mid\s([\w]+)/i;
 
 function getLocalizedChrono(): Chrono {
   const locale = window.moment.locale();
@@ -30,9 +38,7 @@ function getLocalizedChrono(): Chrono {
 function getConfiguredChrono(): Chrono {
   const localizedChrono = getLocalizedChrono();
   localizedChrono.parsers.push({
-    pattern: () => {
-      return /\bChristmas\b/i;
-    },
+    pattern: () => CHRISTMAS_PATTERN,
     extract: () => {
       return {
         day: 25,
@@ -42,7 +48,7 @@ function getConfiguredChrono(): Chrono {
   });
 
   localizedChrono.parsers.push({
-    pattern: () => new RegExp(ORDINAL_NUMBER_PATTERN),
+    pattern: () => ORDINAL_REGEX,
     extract: (_context, match) => {
       return {
         day: parseOrdinalNumberPattern(match[0]),
@@ -55,9 +61,16 @@ function getConfiguredChrono(): Chrono {
 
 export default class NLDParser {
   chrono: Chrono;
+  private referenceDate: Date;
 
   constructor() {
     this.chrono = getConfiguredChrono();
+    this.referenceDate = new Date();
+  }
+
+  // Cache reference date and update periodically to avoid constant new Date() calls
+  private updateReferenceDate(): void {
+    this.referenceDate = new Date();
   }
 
   getParsedDate(selectedText: string, weekStartPreference: DayOfWeek): Date {
@@ -72,26 +85,30 @@ export default class NLDParser {
       weekStart: getWeekNumber(weekStart),
     };
 
-    const thisDateMatch = selectedText.match(/this\s([\w]+)/i);
-    const nextDateMatch = selectedText.match(/next\s([\w]+)/i);
-    const lastDayOfMatch = selectedText.match(/(last day of|end of)\s*([^\n\r]*)/i);
-    const midOf = selectedText.match(/mid\s([\w]+)/i);
+    // Use pre-compiled regex patterns
+    const thisDateMatch = selectedText.match(THIS_PATTERN);
+    const nextDateMatch = selectedText.match(NEXT_PATTERN);
+    const lastDayOfMatch = selectedText.match(LAST_DAY_PATTERN);
+    const midOf = selectedText.match(MID_PATTERN);
 
-    // Always use current date as reference - this fixes the bug with dates beyond current week
-    const referenceDate = new Date();
+    // Update reference date periodically (every 60 seconds) instead of every call
+    const now = Date.now();
+    if (now - this.referenceDate.getTime() > 60000) {
+      this.updateReferenceDate();
+    }
 
     if (thisDateMatch && thisDateMatch[1] === "week") {
-      return parser.parseDate(`this ${weekStart}`, referenceDate);
+      return parser.parseDate(`this ${weekStart}`, this.referenceDate);
     }
 
     if (nextDateMatch && nextDateMatch[1] === "week") {
-      return parser.parseDate(`next ${weekStart}`, referenceDate, {
+      return parser.parseDate(`next ${weekStart}`, this.referenceDate, {
         forwardDate: true,
       });
     }
 
     if (nextDateMatch && nextDateMatch[1] === "month") {
-      const thisMonth = parser.parseDate("this month", new Date(), {
+      const thisMonth = parser.parseDate("this month", this.referenceDate, {
         forwardDate: true,
       });
       return parser.parseDate(selectedText, thisMonth, {
@@ -100,7 +117,7 @@ export default class NLDParser {
     }
 
     if (nextDateMatch && nextDateMatch[1] === "year") {
-      const thisYear = parser.parseDate("this year", new Date(), {
+      const thisYear = parser.parseDate("this year", this.referenceDate, {
         forwardDate: true,
       });
       return parser.parseDate(selectedText, thisYear, {
@@ -114,17 +131,17 @@ export default class NLDParser {
       const month = tempDate[0].start.get("month");
       const lastDay = getLastDayOfMonth(year, month);
 
-      return parser.parseDate(`${year}-${month}-${lastDay}`, new Date(), {
+      return parser.parseDate(`${year}-${month}-${lastDay}`, this.referenceDate, {
         forwardDate: true,
       });
     }
 
     if (midOf) {
-      return parser.parseDate(`${midOf[1]} 15th`, new Date(), {
+      return parser.parseDate(`${midOf[1]} 15th`, this.referenceDate, {
         forwardDate: true,
       });
     }
 
-    return parser.parseDate(selectedText, referenceDate, { locale });
+    return parser.parseDate(selectedText, this.referenceDate, { locale });
   }
 }

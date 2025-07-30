@@ -1,6 +1,6 @@
 import { MarkdownView } from "obsidian";
-import { adjustCursor, getSelectedText } from "./utils";
 import NaturalLanguageDates from "./main";
+import { adjustCursor, getSelectedText } from "./utils";
 
 export function getParseCommand(plugin: NaturalLanguageDates, mode: string): void {
   const { workspace } = plugin.app;
@@ -11,37 +11,49 @@ export function getParseCommand(plugin: NaturalLanguageDates, mode: string): voi
     return;
   }
 
-  const editor = activeView.editor;
-  const cursor = editor.getCursor();
-  const selectedText = getSelectedText(editor);
+  try {
+    const editor = activeView.editor;
+    const cursor = editor.getCursor();
+    const selectedText = getSelectedText(editor);
 
-  const date = plugin.parseDate(selectedText);
+    if (!selectedText || selectedText.trim().length === 0) {
+      // No text selected or empty text
+      return;
+    }
 
-  if (!date.moment.isValid()) {
-    // Do nothing
-    editor.setCursor({
-      line: cursor.line,
-      ch: cursor.ch,
-    });
-    return;
+    const date = plugin.parseDate(selectedText);
+
+    if (!date.moment.isValid()) {
+      // Do nothing for invalid dates
+      editor.setCursor({
+        line: cursor.line,
+        ch: cursor.ch,
+      });
+      return;
+    }
+
+    //mode == "replace"
+    let newStr = `[[${date.formattedString}]]`;
+
+    if (mode == "link") {
+      newStr = `[${selectedText}](${date.formattedString})`;
+    } else if (mode == "clean") {
+      newStr = `${date.formattedString}`;
+    } else if (mode == "time") {
+      const time = plugin.parseTime(selectedText);
+      if (!time.moment.isValid()) {
+        return; // Invalid time, do nothing
+      }
+      newStr = `${time.formattedString}`;
+    }
+
+    editor.replaceSelection(newStr);
+    adjustCursor(editor, cursor, newStr, selectedText);
+    editor.focus();
+  } catch (error) {
+    console.error("Error in parse command:", error);
+    // Fail silently to avoid disrupting user workflow
   }
-
-  //mode == "replace"
-  let newStr = `[[${date.formattedString}]]`;
-
-  if (mode == "link") {
-    newStr = `[${selectedText}](${date.formattedString})`;
-  } else if (mode == "clean") {
-    newStr = `${date.formattedString}`;
-  } else if (mode == "time") {
-    const time = plugin.parseTime(selectedText);
-
-    newStr = `${time.formattedString}`;
-  }
-
-  editor.replaceSelection(newStr);
-  adjustCursor(editor, cursor, newStr, selectedText);
-  editor.focus();
 }
 
 export function insertMomentCommand(

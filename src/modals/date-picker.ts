@@ -4,6 +4,7 @@ import type NaturalLanguageDates from "../main";
 
 export default class DatePickerModal extends Modal {
   plugin: NaturalLanguageDates;
+  private parseCache = new Map<string, string>();
 
   constructor(app: App, plugin: NaturalLanguageDates) {
     super(app);
@@ -26,12 +27,30 @@ export default class DatePickerModal extends Modal {
         cleanDateInput = dateInput.slice(0, -1);
       }
 
-      const parsedDate = this.plugin.parseDate(cleanDateInput || "today");
-      let parsedDateString = parsedDate.moment.isValid()
-        ? parsedDate.moment.format(momentFormat)
-        : "";
+      const inputKey = cleanDateInput || "today";
+      const cacheKey = `${inputKey}:${momentFormat}`;
+      
+      // Check cache first
+      let parsedDateString = this.parseCache.get(cacheKey);
+      if (!parsedDateString) {
+        const parsedDate = this.plugin.parseDate(inputKey);
+        parsedDateString = parsedDate.moment.isValid()
+          ? parsedDate.moment.format(momentFormat)
+          : "";
+        
+        // Cache the result
+        if (parsedDateString) {
+          this.parseCache.set(cacheKey, parsedDateString);
+          
+          // Limit cache size
+          if (this.parseCache.size > 20) {
+            const firstKey = this.parseCache.keys().next().value;
+            this.parseCache.delete(firstKey);
+          }
+        }
+      }
 
-      if (insertAsLink) {
+      if (insertAsLink && parsedDateString) {
         parsedDateString = generateMarkdownLink(
           this.app,
           parsedDateString,
