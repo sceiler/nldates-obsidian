@@ -1,5 +1,5 @@
 import { MarkdownView } from "obsidian";
-import NaturalLanguageDates from "./main";
+import type NaturalLanguageDates from "./main";
 import { adjustCursor, getSelectedText } from "./utils";
 
 export function getParseCommand(plugin: NaturalLanguageDates, mode: string): void {

@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import NaturalLanguageDates from "./main";
+import type NaturalLanguageDates from "./main";
 import { getCachedWeekdays, getLocaleWeekStart } from "./utils";
 
 export type DayOfWeek =
