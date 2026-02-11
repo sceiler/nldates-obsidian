@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **ESLint `no-explicit-any`** — Replaced `any` casts with properly typed alternatives in `date-suggest.ts` and `utils.ts`.
 
+- **chrono-node import** — `import chrono` resolved to `chrono.default.en` (undefined) under esbuild's CJS interop. Switched to `import * as chrono` for correct named export access.
+
+- **esbuild CJS export** — esbuild wraps `export default` in an `__esModule` object, but Obsidian expects `module.exports = PluginClass` directly. Added footer to unwrap the default export.
+
 ### Added
 
 - **Unit test suite** with vitest (21 tests)
