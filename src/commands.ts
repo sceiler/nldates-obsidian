@@ -1,4 +1,4 @@
-import { MarkdownView } from "obsidian";
+import { MarkdownView, Notice } from "obsidian";
 import type NaturalLanguageDates from "./main";
 import { adjustCursor, getSelectedText } from "./utils";
 
@@ -24,7 +24,7 @@ export function getParseCommand(plugin: NaturalLanguageDates, mode: string): voi
     const date = plugin.parseDate(selectedText);
 
     if (!date.moment.isValid()) {
-      // Do nothing for invalid dates
+      new Notice("Could not parse date: " + selectedText);
       editor.setCursor({
         line: cursor.line,
         ch: cursor.ch,

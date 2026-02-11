@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0]
+
+### Changed
+
+- **Build system migration**: Replaced Rollup with esbuild
+  - **82% smaller production bundle** (934KB → 163KB)
+  - Significantly faster build times
+  - Simpler configuration (`esbuild.config.mjs` replaces `rollup.config.js`)
+  - Removed 5 rollup dependencies
+
+- **All dependencies updated to latest versions**
+  - TypeScript 4.7 → 5.9
+  - ESLint 8.2 → 8.57, @typescript-eslint 5.3 → 7.18
+  - Prettier 2.4 → 3.8, tslib 2.4 → 2.8, @types/node 16 → 22
+  - Removed deprecated `@types/moment` (moment ships its own types)
+
+- **Unified cache implementation**: Extracted reusable `LRUCache<T>` class
+  - Replaces three separate ad-hoc cache implementations (main, suggest, modal)
+  - Configurable max size and TTL
+  - Proper LRU eviction with `size` property
+
+- **Settings saves are now debounced** (500ms) for text inputs
+  - Prevents excessive disk writes and cache clears while typing in format/separator/trigger fields
+  - Toggle and dropdown settings still save immediately
+
+- **Trigger phrase setting** now uses a plain text input instead of moment format picker
+
+- **Import paths**: Changed `src/main` and `src/utils` imports to relative paths (`../main`, `../utils`)
+
+- **Type-only imports**: `import type { Moment }` and `import type { DayOfWeek }` where applicable
+
+### Fixed
+
+- **Crash: Date picker null pointer** — `getActiveViewOfType(MarkdownView)` could return null if user switched views between opening the modal and clicking submit. The view is now looked up at submit time with a null guard.
+
+- **Crash: "End of" / "Last day of" parser** — `parser.parse()` result was accessed without checking if chrono could parse the text after "end of". Added array bounds check.
+
+- **Crash: Word boundary detection** — `wordAt()` returns null when cursor is on whitespace or at document boundaries. Added null check and try-catch around CodeMirror internal API access.
+
+- **Stale cache across midnight** — Cache key now includes today's date string, so "tomorrow" cached at 11:59 PM won't return the wrong date at 12:01 AM.
+
+- **Silent failures with no user feedback** — Parse commands, URI handler, and date picker now show `Notice()` messages when dates can't be parsed or editors aren't available (previously failed silently or only logged to console).
+
+- **Markdown link injection** — `generateMarkdownLink()` now escapes `[]()` characters in aliases and paths to prevent broken or injected markdown syntax.
+
+- **URI handler input validation** — Added length check (max 200 chars) on the `day` parameter to prevent excessive computation from malicious URIs.
+
+- **Dead code** — Removed unused `debouncedParse()` method, `debounceTimer`, and `lastQuery` fields from `DateSuggest`.
+
+- **ESLint `no-explicit-any`** — Replaced `any` casts with properly typed alternatives in `date-suggest.ts` and `utils.ts`.
+
+### Added
+
+- **Unit test suite** with vitest (21 tests)
+  - `utils.test.ts`: Tests for `parseTruthy`, `getLastDayOfMonth`, `getWeekNumber`, `parseOrdinalNumberPattern`, and `ORDINAL_NUMBER_PATTERN` regex
+  - `cache.test.ts`: Tests for LRU eviction, TTL expiry, cache promotion, size tracking, and clear behavior
+  - Obsidian/daily-notes-interface mocks for test isolation
+  - `pnpm test` / `pnpm test:watch` scripts
+
+- **`.npmrc`** for pnpm hoisting of `moment` types
+
 ## [1.1.0]
 
 ### Added

@@ -1,35 +1,38 @@
 {
   "name": "nldates-obsidian",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Plugin to parse natural language dates in Obsidian",
   "main": "main.js",
   "scripts": {
     "lint": "eslint . --ext .ts",
-    "dev": "rollup --config rollup.config.js -w",
-    "build": "NODE_ENV=development rollup --config rollup.config.js",
-    "build:prod": "NODE_ENV=production rollup --config rollup.config.js"
+    "dev": "node esbuild.config.mjs --watch",
+    "build": "node esbuild.config.mjs",
+    "build:prod": "NODE_ENV=production node esbuild.config.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@rollup/plugin-commonjs": "21.0.1",
-    "@rollup/plugin-node-resolve": "13.0.6",
-    "@rollup/plugin-terser": "^0.4.4",
-    "@rollup/plugin-typescript": "8.3.0",
-    "@types/moment": "2.13.0",
-    "@types/node": "16.11.7",
-    "@typescript-eslint/eslint-plugin": "5.3.1",
-    "@typescript-eslint/parser": "5.3.1",
-    "eslint": "8.2.0",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^8.57.0",
     "obsidian": "latest",
-    "prettier": "2.4.1",
-    "rollup": "^2.60.0",
-    "tslib": "2.4.0",
-    "typescript": "4.7.4"
+    "prettier": "^3.0.0",
+    "tslib": "^2.8.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "chrono-node": "github:liamcain/chrono",
-    "obsidian-daily-notes-interface": "0.9.4"
+    "obsidian-daily-notes-interface": "^0.9.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

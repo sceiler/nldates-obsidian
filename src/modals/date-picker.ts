@@ -1,10 +1,9 @@
-import { App, MarkdownView, Modal, Setting } from "obsidian";
-import { generateMarkdownLink } from "src/utils";
+import { App, MarkdownView, Modal, Notice, Setting } from "obsidian";
+import { generateMarkdownLink } from "../utils";
 import type NaturalLanguageDates from "../main";
 
 export default class DatePickerModal extends Modal {
   plugin: NaturalLanguageDates;
-  private parseCache = new Map<string, string>();
 
   constructor(app: App, plugin: NaturalLanguageDates) {
     super(app);
@@ -28,27 +27,10 @@ export default class DatePickerModal extends Modal {
       }
 
       const inputKey = cleanDateInput || "today";
-      const cacheKey = `${inputKey}:${momentFormat}`;
-      
-      // Check cache first
-      let parsedDateString = this.parseCache.get(cacheKey);
-      if (!parsedDateString) {
-        const parsedDate = this.plugin.parseDate(inputKey);
-        parsedDateString = parsedDate.moment.isValid()
-          ? parsedDate.moment.format(momentFormat)
-          : "";
-        
-        // Cache the result
-        if (parsedDateString) {
-          this.parseCache.set(cacheKey, parsedDateString);
-          
-          // Limit cache size
-          if (this.parseCache.size > 20) {
-            const firstKey = this.parseCache.keys().next().value;
-            this.parseCache.delete(firstKey);
-          }
-        }
-      }
+      const parsedDate = this.plugin.parseDate(inputKey);
+      let parsedDateString = parsedDate.moment.isValid()
+        ? parsedDate.moment.format(momentFormat)
+        : "";
 
       if (insertAsLink && parsedDateString) {
         parsedDateString = generateMarkdownLink(
@@ -112,12 +94,16 @@ export default class DatePickerModal extends Modal {
         });
       });
 
-      const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-      const activeEditor = activeView.editor;
       formEl.addEventListener("submit", (e: Event) => {
         e.preventDefault();
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!activeView) {
+          new Notice("No active markdown editor to insert date into.");
+          this.close();
+          return;
+        }
         this.close();
-        activeEditor.replaceSelection(getDateStr());
+        activeView.editor.replaceSelection(getDateStr());
       });
     });
   }

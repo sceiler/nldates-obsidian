@@ -19,7 +19,7 @@ Insert timestamps and cross-link your daily notes with the flexibility of natura
 - **Instant suggestions** for frequently used dates (0ms delay)
 - **Smooth typing** with adaptive debouncing (50-100ms)
 - **20-30% less memory** usage with optimized caching
-- **33% smaller bundle** size with production minification (1.42MB → 934KB)
+- **88% smaller bundle** with esbuild (1.42MB → 163KB)
 - **Eliminated keyboard lag** and suggestion flickering
 - **Faster plugin initialization** with optimized loading
 
@@ -86,7 +86,7 @@ This enhanced fork includes comprehensive performance optimizations that make th
 
 - **40-60% faster parsing** for repeated date strings
 - **83% fewer parsing operations** during typing
-- **33% smaller bundle size** (1.42MB → 934KB)
+- **88% smaller bundle size** (1.42MB → 163KB)
 - **20-30% less memory usage** with optimized caching
 - **0ms response time** for cached suggestions
 - **Eliminated keyboard lag** and suggestion flickering
@@ -167,33 +167,36 @@ This plugin now supports both development and production builds:
 **Development Build (faster, unminified):**
 
 ```bash
-npm run build
+pnpm build
 ```
 
 **Production Build (minified, optimized for distribution):**
 
 ```bash
-npm run build:prod
+pnpm build:prod
 ```
 
 **Development with Watch Mode:**
 
 ```bash
-npm run dev
+pnpm dev
+```
+
+**Run Tests:**
+
+```bash
+pnpm test
 ```
 
 ### Build Optimization
 
-The production build includes comprehensive optimizations:
+The production build uses **esbuild** with comprehensive optimizations:
 
 #### **Minification & Bundle Optimization**
 
-- **JavaScript minification** with Terser (33% size reduction)
+- **JavaScript minification** with esbuild (88% size reduction)
 - **Tree shaking** to remove unused code
-- **Comment removal** for cleaner output
 - **Dead code elimination** for optimal bundle size
-- **Preserved function names** required by Obsidian's plugin system
-- **Preserved class names** for plugin compatibility
 
 #### **Performance Enhancements**
 
@@ -212,9 +215,9 @@ The production build includes comprehensive optimizations:
 
 **Bundle Size Comparison:**
 
-- Development: ~1.3MB (unminified, faster builds)
-- Production: ~934KB (minified, optimized for distribution)
-- **Size reduction: 33%** for faster loading and better performance
+- Development: ~1.2MB (unminified, with source maps)
+- Production: ~163KB (minified, optimized for distribution)
+- **Size reduction: 88%** for faster loading and better performance
 
 ---
 

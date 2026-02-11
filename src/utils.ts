@@ -1,4 +1,4 @@
-import { Moment } from "moment";
+import type { Moment } from "moment";
 import { App, Editor, EditorPosition, EditorRange, normalizePath, TFile } from "obsidian";
 import {
     createDailyNote,
@@ -19,8 +19,8 @@ const daysOfWeek: Omit<DayOfWeek, "locale-default">[] = [
 ];
 
 // Cache for expensive moment operations
-let cachedLocaleData: any = null;
-let cachedWeekdays: string[] = null;
+let cachedLocaleData: ReturnType<typeof window.moment.localeData> | null = null;
+let cachedWeekdays: string[] | null = null;
 let lastLocaleCheck = 0;
 const LOCALE_CACHE_DURATION = 60000; // 1 minute
 
@@ -42,29 +42,34 @@ export function getCachedWeekdays() {
   return cachedWeekdays;
 }
 
-export default function getWordBoundaries(editor: Editor): EditorRange {
+export default function getWordBoundaries(editor: Editor): EditorRange | null {
   const cursor = editor.getCursor();
 
+  try {
     const pos = editor.posToOffset(cursor);
-    // Accessing CodeMirror internal state - this is necessary for word boundary detection
-    const editorWithCM = editor as Editor & { cm: { state: { wordAt: (pos: number) => { from: number; to: number } } } };
+    const editorWithCM = editor as Editor & { cm: { state: { wordAt: (pos: number) => { from: number; to: number } | null } } };
     const word = editorWithCM.cm.state.wordAt(pos);
-    const wordStart = editor.offsetToPos(word.from);
-    const wordEnd = editor.offsetToPos(word.to);
+    if (!word) return null;
+
     return {
-      from: wordStart,
-      to: wordEnd,
+      from: editor.offsetToPos(word.from),
+      to: editor.offsetToPos(word.to),
     };
+  } catch {
+    return null;
+  }
 }
 
 export function getSelectedText(editor: Editor): string {
   if (editor.somethingSelected()) {
     return editor.getSelection();
-  } else {
-    const wordBoundaries = getWordBoundaries(editor);
-    editor.setSelection(wordBoundaries.from, wordBoundaries.to); // TODO check if this needs to be updated/improved
-    return editor.getSelection();
   }
+
+  const wordBoundaries = getWordBoundaries(editor);
+  if (!wordBoundaries) return "";
+
+  editor.setSelection(wordBoundaries.from, wordBoundaries.to);
+  return editor.getSelection();
 }
 
 export function adjustCursor(
@@ -103,8 +108,15 @@ export function getLocaleWeekStart(): Omit<DayOfWeek, "locale-default"> {
   return daysOfWeek[startOfWeek];
 }
 
+function escapeMdLinkText(text: string): string {
+  return text.replace(/[[\]]/g, "\\$&");
+}
+
+function escapeMdLinkUrl(url: string): string {
+  return url.replace(/ /g, "%20").replace(/[()]/g, "\\$&");
+}
+
 export function generateMarkdownLink(app: App, subpath: string, alias?: string) {
-  // Accessing Obsidian vault configuration
   const vaultWithConfig = app.vault as typeof app.vault & {
     getConfig: (key: string) => boolean;
   };
@@ -113,9 +125,9 @@ export function generateMarkdownLink(app: App, subpath: string, alias?: string) 
 
   if (useMarkdownLinks) {
     if (alias) {
-      return `[${alias}](${path.replace(/ /g, "%20")})`;
+      return `[${escapeMdLinkText(alias)}](${escapeMdLinkUrl(path)})`;
     } else {
-      return `[${subpath}](${path})`;
+      return `[${escapeMdLinkText(subpath)}](${escapeMdLinkUrl(path)})`;
     }
   } else {
     if (alias) {

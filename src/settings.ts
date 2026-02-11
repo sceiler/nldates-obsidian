@@ -54,10 +54,18 @@ const weekdays = [
 
 export class NLDSettingsTab extends PluginSettingTab {
   plugin: NaturalLanguageDates;
+  private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(app: App, plugin: NaturalLanguageDates) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+  private debouncedSave(): void {
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(() => {
+      this.plugin.saveSettings();
+    }, 500);
   }
 
   display(): void {
@@ -82,9 +90,9 @@ export class NLDSettingsTab extends PluginSettingTab {
         text
           .setDefaultFormat("YYYY-MM-DD")
           .setValue(this.plugin.settings.format)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.format = value || "YYYY-MM-DD";
-            await this.plugin.saveSettings();
+            this.debouncedSave();
           })
       );
 
@@ -114,9 +122,9 @@ export class NLDSettingsTab extends PluginSettingTab {
         text
           .setDefaultFormat("HH:mm")
           .setValue(this.plugin.settings.timeFormat)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.timeFormat = value || "HH:mm";
-            await this.plugin.saveSettings();
+            this.debouncedSave();
           })
       );
 
@@ -127,9 +135,9 @@ export class NLDSettingsTab extends PluginSettingTab {
         text
           .setPlaceholder("Separator is empty")
           .setValue(this.plugin.settings.separator)
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.separator = value;
-            await this.plugin.saveSettings();
+            this.debouncedSave();
           })
       );
 
@@ -168,13 +176,13 @@ export class NLDSettingsTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Trigger phrase")
       .setDesc("Character(s) that will cause the date autosuggest to open")
-      .addMomentFormat((text) =>
+      .addText((text) =>
         text
           .setPlaceholder(DEFAULT_SETTINGS.autocompleteTriggerPhrase)
           .setValue(this.plugin.settings.autocompleteTriggerPhrase || "@")
-          .onChange(async (value) => {
+          .onChange((value) => {
             this.plugin.settings.autocompleteTriggerPhrase = value.trim();
-            await this.plugin.saveSettings();
+            this.debouncedSave();
           })
       );
   }
