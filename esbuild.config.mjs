@@ -7,7 +7,7 @@ const isWatch = process.argv.includes("--watch");
 const context = await esbuild.context({
   entryPoints: ["src/main.ts"],
   bundle: true,
-  external: ["obsidian", "electron"],
+  external: ["obsidian", "electron", "@codemirror/state", "@codemirror/view"],
   format: "cjs",
   target: "es2018",
   logLevel: "info",
@@ -16,6 +16,11 @@ const context = await esbuild.context({
   outfile: "main.js",
   minify: isProduction,
   drop: isProduction ? ["debugger"] : [],
+  // Obsidian expects `module.exports = <plugin class>`, not the __esModule wrapper
+  banner: { js: "/* eslint-disable */" },
+  footer: {
+    js: "module.exports = module.exports.default;",
+  },
 });
 
 if (isWatch) {
