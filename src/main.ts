@@ -1,5 +1,6 @@
-import { MarkdownView, ObsidianProtocolData, Plugin } from "obsidian";
+import { MarkdownView, Notice, ObsidianProtocolData, Plugin } from "obsidian";
 
+import { LRUCache } from "./cache";
 import {
     getCurrentDateCommand,
     getCurrentTimeCommand,
@@ -12,47 +13,10 @@ import { DEFAULT_SETTINGS, NLDSettings, NLDSettingsTab } from "./settings";
 import DateSuggest from "./suggest/date-suggest";
 import { getFormattedDate, getOrCreateDailyNote, parseTruthy } from "./utils";
 
-// Simple LRU cache for parsed results
-class ParseCache {
-  private cache = new Map<string, { result: NLDResult; timestamp: number }>();
-  private maxSize = 100;
-  private maxAge = 5 * 60 * 1000; // 5 minutes
-
-  get(key: string): NLDResult | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-    
-    // Check if entry is expired
-    if (Date.now() - entry.timestamp > this.maxAge) {
-      this.cache.delete(key);
-      return null;
-    }
-    
-    // Move to end (most recently used)
-    this.cache.delete(key);
-    this.cache.set(key, entry);
-    return entry.result;
-  }
-
-  set(key: string, result: NLDResult): void {
-    // Remove oldest entries if cache is full
-    if (this.cache.size >= this.maxSize) {
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
-    }
-    
-    this.cache.set(key, { result, timestamp: Date.now() });
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-}
-
 export default class NaturalLanguageDates extends Plugin {
   private parser: NLDParser;
   public settings: NLDSettings;
-  private parseCache = new ParseCache();
+  private parseCache = new LRUCache<NLDResult>();
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -129,8 +93,6 @@ export default class NaturalLanguageDates extends Plugin {
   }
 
   onunload(): void {
-    console.log("Unloading natural language date parser plugin");
-    // Clean up caches
     this.parseCache.clear();
   }
 
@@ -138,15 +100,11 @@ export default class NaturalLanguageDates extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
   }
 
-  /*
-    @param dateString: A string that contains a date in natural language, e.g. today, tomorrow, next week
-    @param format: A string that contains the formatting string for a Moment
-    @returns NLDResult: An object containing the date, a cloned Moment and the formatted string.
-  */
   parse(dateString: string, format: string): NLDResult {
-    const cacheKey = `${dateString}:${format}:${this.settings.weekStart}`;
-    
-    // Check cache first
+    // Include today's date in cache key so entries don't survive across midnight
+    const today = new Date().toDateString();
+    const cacheKey = `${dateString}:${format}:${this.settings.weekStart}:${today}`;
+
     const cached = this.parseCache.get(cacheKey);
     if (cached) {
       return cached;
@@ -164,15 +122,10 @@ export default class NaturalLanguageDates extends Plugin {
       moment: window.moment(date),
     };
 
-    // Cache the result
     this.parseCache.set(cacheKey, result);
     return result;
   }
 
-  /*
-    @param dateString: A string that contains a date in natural language, e.g. today, tomorrow, next week
-    @returns NLDResult: An object containing the date, a cloned Moment and the formatted string.
-  */
   parseDate(dateString: string): NLDResult {
     return this.parse(dateString, this.settings.format);
   }
@@ -183,15 +136,20 @@ export default class NaturalLanguageDates extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
-    // Clear cache when settings change as they affect parsing results
     this.parseCache.clear();
   }
 
   async actionHandler(params: ObsidianProtocolData): Promise<void> {
     const { workspace } = this.app;
 
+    const dayParam = params.day;
+    if (!dayParam || dayParam.length > 200) {
+      new Notice("Invalid date provided to nldates.");
+      return;
+    }
+
     try {
-      const date = this.parseDate(params.day);
+      const date = this.parseDate(dayParam);
       const newPane = parseTruthy(params.newPane || "yes");
 
       if (date.moment.isValid()) {
@@ -199,15 +157,14 @@ export default class NaturalLanguageDates extends Plugin {
         if (dailyNote) {
           workspace.getLeaf(newPane).openFile(dailyNote);
         } else {
-          console.warn("Failed to create or get daily note for date:", params.day);
+          new Notice("Failed to create daily note for: " + dayParam);
         }
       } else {
-        console.warn("Invalid date provided to nldates URI handler:", params.day);
+        new Notice("Could not parse date: " + dayParam);
       }
     } catch (error) {
       console.error("Error in nldates URI handler:", error);
-      // Optionally show user-friendly error message
-      // new Notice("Failed to open daily note. Please check the date format.");
+      new Notice("Failed to open daily note. Please check the date format.");
     }
   }
 }

@@ -19,7 +19,7 @@ Insert timestamps and cross-link your daily notes with the flexibility of natura
 - **Instant suggestions** for frequently used dates (0ms delay)
 - **Smooth typing** with adaptive debouncing (50-100ms)
 - **20-30% less memory** usage with optimized caching
-- **33% smaller bundle** size with production minification (1.42MB → 934KB)
+- **88% smaller bundle** with esbuild (1.42MB → 163KB)
 - **Eliminated keyboard lag** and suggestion flickering
 - **Faster plugin initialization** with optimized loading
 
@@ -86,7 +86,7 @@ This enhanced fork includes comprehensive performance optimizations that make th
 
 - **40-60% faster parsing** for repeated date strings
 - **83% fewer parsing operations** during typing
-- **33% smaller bundle size** (1.42MB → 934KB)
+- **88% smaller bundle size** (1.42MB → 163KB)
 - **20-30% less memory usage** with optimized caching
 - **0ms response time** for cached suggestions
 - **Eliminated keyboard lag** and suggestion flickering
@@ -162,59 +162,32 @@ Access settings via `Settings > Natural Language Dates`:
 
 ### Building the Plugin
 
-This plugin now supports both development and production builds:
-
-**Development Build (faster, unminified):**
-
 ```bash
-npm run build
+pnpm install        # Install dependencies
+pnpm build          # Development build (with source maps)
+pnpm build:prod     # Production build (minified, 163KB)
+pnpm dev            # Watch mode for development
+pnpm test           # Run unit tests
+pnpm lint           # Run ESLint
 ```
 
-**Production Build (minified, optimized for distribution):**
+### Build System
+
+Built with **esbuild** for fast builds and optimal output:
+
+- **Production bundle: 163KB** (down from 1.42MB in the original)
+- Tree shaking and minification enabled in production
+- Source maps for development builds
+- TypeScript 5.9 with strict checking
+
+### Testing
+
+Unit tests with **vitest** covering utility functions and the LRU cache:
 
 ```bash
-npm run build:prod
+pnpm test           # Run once
+pnpm test:watch     # Watch mode
 ```
-
-**Development with Watch Mode:**
-
-```bash
-npm run dev
-```
-
-### Build Optimization
-
-The production build includes comprehensive optimizations:
-
-#### **Minification & Bundle Optimization**
-
-- **JavaScript minification** with Terser (33% size reduction)
-- **Tree shaking** to remove unused code
-- **Comment removal** for cleaner output
-- **Dead code elimination** for optimal bundle size
-- **Preserved function names** required by Obsidian's plugin system
-- **Preserved class names** for plugin compatibility
-
-#### **Performance Enhancements**
-
-- **Smart Result Caching**: LRU cache with 5-minute TTL
-  - 100-item cache limit with automatic cleanup
-  - 70-80% hit rate for common dates
-  - 40-60% faster parsing for repeated strings
-- **Debounced Autosuggest**: Intelligent typing optimization
-  - 83% fewer parsing operations during typing
-  - Instant suggestions (0ms) for cached results
-  - Adaptive delays: 50ms (short) / 100ms (long queries)
-- **Memory Optimization**: 20-30% reduction in memory footprint
-  - Proper cleanup in lifecycle methods
-  - Cached reference dates and locale data
-  - Prevention of memory leaks
-
-**Bundle Size Comparison:**
-
-- Development: ~1.3MB (unminified, faster builds)
-- Production: ~934KB (minified, optimized for distribution)
-- **Size reduction: 33%** for faster loading and better performance
 
 ---
 

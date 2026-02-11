@@ -7,8 +7,8 @@ import {
     EditorSuggestTriggerInfo,
     TFile,
 } from "obsidian";
-import type NaturalLanguageDates from "src/main";
-import { generateMarkdownLink } from "src/utils";
+import type NaturalLanguageDates from "../main";
+import { generateMarkdownLink } from "../utils";
 
 interface IDateCompletion {
   label: string;
@@ -18,8 +18,6 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
   app: App;
   private plugin: NaturalLanguageDates;
   private parseCache = new Map<string, string>();
-  private debounceTimer: NodeJS.Timeout | null = null;
-  private lastQuery = "";
 
   constructor(app: App, plugin: NaturalLanguageDates) {
     super(app);
@@ -27,18 +25,17 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
     this.plugin = plugin;
 
     // Register Shift+Enter to keep text as alias
-    // Note: Accessing internal Obsidian API properties
     try {
-      const scope = this.scope as any;
-      scope.register(["Shift"], "Enter", (evt: KeyboardEvent) => {
-        const suggestions = (this as any).suggestions;
-        if (suggestions && suggestions.useSelectedItem) {
-          suggestions.useSelectedItem(evt);
-        }
-        return false;
-      });
-    } catch (error) {
-      console.warn("Failed to register Shift+Enter shortcut for date suggestions:", error);
+      (this.scope as Record<string, unknown> & { register: (keys: string[], key: string, cb: (evt: KeyboardEvent) => boolean) => void })
+        .register(["Shift"], "Enter", (evt: KeyboardEvent) => {
+          const self = this as EditorSuggest<IDateCompletion> & { suggestions?: { useSelectedItem?: (evt: KeyboardEvent) => void } };
+          if (self.suggestions?.useSelectedItem) {
+            self.suggestions.useSelectedItem(evt);
+          }
+          return false;
+        });
+    } catch {
+      console.warn("Failed to register Shift+Enter shortcut for date suggestions");
     }
 
     if (this.plugin.settings.autosuggestToggleLink) {
@@ -46,48 +43,8 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
     }
   }
 
-  // Clean up resources when component is destroyed
   onunload(): void {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
-    }
     this.parseCache.clear();
-  }
-
-  // Debounced parsing to avoid excessive computation during typing
-  private debouncedParse(query: string, callback: (result: string) => void): void {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
-    }
-
-    // Check cache first - immediate response for cached items
-    const cached = this.parseCache.get(query);
-    if (cached) {
-      callback(cached);
-      return;
-    }
-
-    // For very short queries, use shorter debounce
-    const debounceDelay = query.length <= 2 ? 50 : 100; // Reduced from 150ms
-
-    this.debounceTimer = setTimeout(() => {
-      try {
-        const result = this.plugin.parseDate(query).formattedString;
-        this.parseCache.set(query, result);
-        
-        // Limit cache size
-        if (this.parseCache.size > 50) {
-          const firstKey = this.parseCache.keys().next().value;
-          this.parseCache.delete(firstKey);
-        }
-        
-        callback(result);
-      } catch (error) {
-        console.warn("Date parsing error:", error);
-        callback(query);
-      }
-    }, debounceDelay);
   }
 
   getSuggestions(context: EditorSuggestContext): IDateCompletion[] {
@@ -158,7 +115,6 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
 
     if (suggestion.label.startsWith("time:")) {
       const timePart = suggestion.label.substring(5);
-      // Use cached result if available
       const cached = this.parseCache.get(timePart);
       if (cached) {
         dateStr = cached;
@@ -168,7 +124,6 @@ export default class DateSuggest extends EditorSuggest<IDateCompletion> {
       }
       makeIntoLink = false;
     } else {
-      // Use cached result if available
       const cached = this.parseCache.get(suggestion.label);
       if (cached) {
         dateStr = cached;
