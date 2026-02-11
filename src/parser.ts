@@ -1,4 +1,6 @@
-import chrono, { Chrono, Parser } from "chrono-node";
+import * as chrono from "chrono-node";
+import { Chrono } from "chrono-node";
+import type { Parser } from "chrono-node";
 import type { Moment } from "moment";
 
 import type { DayOfWeek } from "./settings";
